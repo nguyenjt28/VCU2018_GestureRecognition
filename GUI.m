@@ -425,6 +425,7 @@ while(1)
     
     BW_Train=BW*255;
     BW_Train=uint8(BW_Train);
+    BW_Skel=BW_Train;
     BW_Train = cat(3, BW_Train, BW_Train, BW_Train);
     cam_snap = cat(3, cam_snap, cam_snap, cam_snap);
     [centroids, row1L, row2L, column1L, column2L, wL, hL] = draw_Rectangle(BW);
@@ -435,6 +436,10 @@ while(1)
     plot(centroids(:,1), centroids(:,2), '+r', 'MarkerSize',10);           %%%Mass Centroid
     hold off;
     
+    %sfigure(2)
+    %imshow(bwmorph(skeleton(BW_Skel)>35,'skel',Inf));
+    BW_Skel=bwmorph(skeleton(BW_Skel)>35,'skel',Inf);
+%     BW_Skel = cat(3, BW_Skel, 0, 0);
 %     h = sfigure(2);
     picture = BW_Train;
     picture = uint8(picture);
@@ -466,6 +471,8 @@ while(1)
 %     
 %     drawnow
     
+    red=cat(3,ones(size(BW_Skel)),zeros(size(BW_Skel)),zeros(size(BW_Skel)));
+    
     
     if strcmp(char(label),char(prevlabel))
       confirm=confirm+1;
@@ -473,7 +480,11 @@ while(1)
       if (confirm < confirmthresh) && (max(score)>0.8)
           axes(handles.axes1)
           %imshow(cam_snap);
-          imshow(BW)
+          imshow(BW_Train)
+          hold on
+          h=imshow(red);
+          hold off
+          set(h,'AlphaData',BW_Skel);
           percent=confirm/confirmthresh*100;
           title(sprintf('Confirming: %s%%',int2str(percent)));
           drawnow;
@@ -482,7 +493,11 @@ while(1)
       if (confirm>=confirmthresh) && (max(score)>0.8)
           axes(handles.axes1)
           %imshow(cam_snap);
-          imshow(BW)
+          imshow(BW_Train)
+          hold on
+          h=imshow(red);
+          hold off
+          set(h,'AlphaData',BW_Skel);
           title({char(label),num2str(max(score),2)});
           drawnow;
           commands=Gesture2Command(label,commands);
@@ -498,7 +513,11 @@ while(1)
     else
         axes(handles.axes1)
         imshow(cam_snap)
-        imshow(BW);
+        imshow(BW_Train)
+        hold on
+        h=imshow(red);
+        hold off
+        set(h,'AlphaData',BW_Skel);
         drawnow;
         confirm=0;
         commands=zeros(1,commandlength);
