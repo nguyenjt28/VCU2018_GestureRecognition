@@ -1,15 +1,15 @@
 function commands=Gesture2Command(Gesture,commands)
 
     switch Gesture
-        case 'Both Hands'
-            commands(5)=1;
-        case 'Right Hand'
+        case 'LeftHand'
             commands(6)=1;
-        case 'Left Hand'
+        case 'RightHand'
             commands(7)=1;
-        case 'Red Light'
+        case 'LeftHandUp'
             commands(8)=1;
-        case 'Green Light'
+        case 'RightHandUp'
             commands(9)=1;
+        case 'Noise'
+            commands(10)=1;
     end
             

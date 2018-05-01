@@ -1,4 +1,4 @@
-function CreateImages(DelayTime,ImageQuant,FileName,tcp,commands,savepath)
+function CreateImages(DelayTime,ImageQuant,FileName,tcp,commands,savepath,handle)
 
 %savepath = 'C:\Users\Michael\Desktop\Transfer Learning Images\Data\Both Hands';
 %savepath = 'C:\Users\Michael\Desktop\Transfer Learning Images\Data\Left Hand';
@@ -15,6 +15,7 @@ while toc<DelayTime
     BW = image_Binarize(cam_snap);
     picture = BW;
     Time=DelayTime-toc;
+    axes(handle)
     imshow(picture);
     title(sprintf('Time Remaining: %f Seconds',Time))
     drawnow;
@@ -31,6 +32,7 @@ for i=1:ImageQuant
     BW = cat(3, BW, BW, BW);
     picture = BW;
     picture = imresize(picture,[227,227]);
+    axes(handle)
     image(picture);
     title(sprintf('Image Number: %s of %s',int2str(i), int2str(ImageQuant)))
     drawnow;

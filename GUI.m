@@ -22,7 +22,7 @@ function varargout = GUI(varargin)
 
 % Edit the above text to modify the response to help GUI
 
-% Last Modified by GUIDE v2.5 13-Mar-2018 17:35:41
+% Last Modified by GUIDE v2.5 27-Mar-2018 16:35:42
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -121,7 +121,7 @@ function popupmenu3_Callback(hObject, eventdata, handles)
 %        contents{get(hObject,'Value')} returns selected item from popupmenu3
 
 filename=strcat(char(pwd),char('\data'));
-directory=dir(filename)
+directory=dir(filename);
 files=strings(1,length(directory));
 
 for i=1:length(directory)
@@ -136,7 +136,7 @@ for i=1:length(files)
     newfiles(i)=char(strcat(char(filename),char(strcat('\',files(i)))));
 end
 
-test='Hi Test'
+test='Hi Test';
 
 set(handles.popupmenu3,'String',files)
 
@@ -179,6 +179,7 @@ global started;
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 terminate=1;
+set(handles.pushbutton4,'Visible','off')
 
 
 % --- Executes on button press in pushbutton5.
@@ -190,15 +191,24 @@ global started;
 % handles    structure with handles and user data (see GUIDATA)
 test(handles);
 started = 1;
+set(handles.pushbutton5,'Visible','off')
 
 
 function test(handles)
 global stage %stage is a global variable used to determine what windows in the GUI main should be hidden dependent on location in code EG. Gesture creation/training/execution are stages 0,1,2 respectively 
+global terminate
+terminate = 0;
 stage=0;
 global pb7;
 pb7=0;
-commandlength=9;
-tcp = tcpip('172.23.42.17', 30000, 'NetworkRole', 'client');
+
+debug=0; % if 1, code will enter debug mode
+
+set(handles.pushbutton4,'Visible','on')
+set(handles.pushbutton5,'Visible','off')
+set(handles.pushbutton10,'Visible','on')
+commandlength=10;
+tcp = tcpip('10.248.71.123', 30000, 'NetworkRole', 'client');
 % tcp = tcpip('192.168.0.101', 30000, 'NetworkRole', 'client');
 set(tcp,'InputBufferSize',83700);
 set(tcp,'Timeout',30);
@@ -224,6 +234,7 @@ if(false) %Used for Hue Lights
     Light3=strcat(urlLIGHT_State(1:end-7),'3/state');
 end
 
+if(debug==0)
 try cd Data
     cd ..
     savepath=strcat(savepath,'\Data\');
@@ -297,7 +308,7 @@ while(strcmp(char(pb7),char('Y')))
    pb7="";
    set(handles.edit1,'String','')
    set(handles.axes1,'Visible','on')
-   CreateImages(Delay,100,str,tcp,commands,savepath);  %(Delay - Time before photos are taken, Number of photos to be taken, Name of Gesture)
+   CreateImages(Delay,100,str,tcp,commands,savepath,handles.axes1);  %(Delay - Time before photos are taken, Number of photos to be taken, Name of Gesture)
    close(figure(1))
    set(handles.text4,'String','Capture complete! Would you like to create another gesture? (Y/N): ')
    %str=input('\nCapture complete! Would you like to create another gesture? (Y/N): ', 's');
@@ -402,16 +413,74 @@ end
 
 stage=2;
 inputSize = netTransfer.Layers(1).InputSize(1:2);
-confirmthresh=10;
+confirmthresh=5;
 prevlabel='NULL';
 confirm=0;
  
 close(figure(2))
+commands(1)=1;
 
+    filename=strcat(char(pwd),char('\data'));
+    directory=dir(filename);
+    files=strings(1,length(directory));
+
+    for i=1:length(directory)
+       file=directory(i);
+       files(i)=file.name;
+    end
+
+    files=files(3:length(directory));
+    newfiles2=strings(1,length(files));
+    r=ones(1,length(files));
+    for i=1:length(files)
+        %r(i)=1;
+        newfiles2(i)=char(strcat(char(filename),char(strcat('\',files(i),'\image_',int2str(r(i)),'.jpg'))));
+    end
+       % axes(handles.axes5)
+        axesset1=0;
 while(1)
+        
+    if strcmp(char(get(handles.uipanel2,'Visible')),char('on'))
+        set(handles.popupmenu3,'String',files)
+        value=get(handles.popupmenu3,'Value');
+        r(value)=randi([1 length(files)]);
+        s(value)=int2str(r(value));
+        str=char(newfiles2(value));
+        for i=length(str):-1:1
+           if strcmp(str(i),'_')
+               break;
+           end
+        end
+        k=length(str)-i;
+        str=str(1:end-k);
+        str=strcat(str,s(value),'.jpg');
+        clear(char(newfiles2(value)))
+        %newfiles2(value)=1:length(str);
+        newfiles2(value)=char(str);
+        %value=str2num(char(value));
+        pic=imread(char(newfiles2(value)));
+        %set(handles.axes5,'UserData',pic)
+        %cla;
+        axes(handles.axes5)
+        imshow(pic)
+        drawnow;
+        axesset1=0;
+    end
+        
+    if terminate == 1
+        commands(1)=0;
+        %set(handles.pushbutton10,'Visible','on')
+        set(handles.pushbutton4,'Visible','off')
+    end
+    if terminate == 0
+        commands(1)=1;
+        %set(handles.pushbutton10,'Visible','off')
+        set(handles.pushbutton4,'Visible','on')
+    end
     vecphoto=fread(tcp,[227 227],'uint8');  %% Receives vectorized image from server
     cam_snap=reshape(vecphoto,227,227);  %% Reshapes vector into an array 
     cam_snap=uint8(cam_snap);  %% Changes type of array from double to uint8
+    cam_snap_orig=cam_snap;
     
     %%%%%
     
@@ -430,7 +499,10 @@ while(1)
     cam_snap = cat(3, cam_snap, cam_snap, cam_snap);
     [centroids, row1L, row2L, column1L, column2L, wL, hL] = draw_Rectangle(BW);
 
-    sfigure(1);      imshow(BW); 
+    sfigure(1);   
+    if strcmp(char(get(handles.uipanel2,'Visible')),char('off'))
+    imshow(BW); 
+    end
     hold on;
     rectangle('Position',[column1L row1L wL hL],'EdgeColor','r','LineStyle','-.','LineWidth',1.5);
     plot(centroids(:,1), centroids(:,2), '+r', 'MarkerSize',10);           %%%Mass Centroid
@@ -439,8 +511,26 @@ while(1)
     %sfigure(2)
     %imshow(bwmorph(skeleton(BW_Skel)>35,'skel',Inf));
     BW_Skel=bwmorph(skeleton(BW_Skel)>35,'skel',Inf);
-%     BW_Skel = cat(3, BW_Skel, 0, 0);
-%     h = sfigure(2);
+%     BW_Skel= bwmorph(BW,'skel',Inf);
+%     B = bwmorph(BW_Skel, 'branchpoints');
+%     E = bwmorph(BW_Skel, 'endpoints');
+%     [y,x] = find(E);
+%     B_loc = find(B);
+%     Dmask = false(size(BW_Skel));
+%     for k = 1:numel(x)
+%         D = bwdistgeodesic(BW_Skel,x(k),y(k));
+%         distanceToBranchPt = min(D(B_loc));
+%         Dmask(D < distanceToBranchPt) =true;
+%     end
+%     BW_Skel1D = BW_Skel - Dmask;
+    %imshow(skelD);
+    %hold all;
+    %[y,x] = find(B); plot(x,y,'ro')
+    %hold off
+    %BW_Skel_Binary=anaskel(BW_Skel);
+    %[dmap,exy,jxy] = anaskel(BW);
+    %BW_Skel = cat(3, BW_Skel, 0, 0);
+    %h = sfigure(2);
     picture = BW_Train;
     picture = uint8(picture);
     [label, score] = classify(netTransfer, picture);
@@ -461,6 +551,7 @@ while(1)
     scoreTop = score(idx);
     classNames = netTransfer.Layers(end).ClassNames;
     classNamesTop = classNames(idx);
+    
     % Plot the histogram
 %     barh(ax2,scoreTop)
 %     title(ax2,'Top 5')
@@ -472,94 +563,116 @@ while(1)
 %     drawnow
     
     red=cat(3,ones(size(BW_Skel)),zeros(size(BW_Skel)),zeros(size(BW_Skel)));
+    black=cat(3,zeros(size(BW_Skel)),zeros(size(BW_Skel)),zeros(size(BW_Skel)));
     
+    %%%%%%%%%%%%%%%%%%%Filters%%%%%%%%%%%%%%%%%%%%%%%%%%
+    if strcmp(char(label),'Test1')
+        filter=1;
+    elseif strcmp(char(label), 'Noise')
+        filter=1;
+    else
+        filter=0;
+    end
     
+%     if axesset1==0
+%         axes(handles.axes1)
+%         axesset1=1;
+%     end
+
     if strcmp(char(label),char(prevlabel))
       confirm=confirm+1;
       
-      if (confirm < confirmthresh) && (max(score)>0.8)
-          axes(handles.axes1)
+      if (confirm < confirmthresh) && (max(score)>0.8) && filter==0
           %imshow(cam_snap);
+          if strcmp(char(get(handles.uipanel2,'Visible')),char('off'))
+          axes(handles.axes1)
           imshow(BW_Train)
-          hold on
-          h=imshow(red);
-          hold off
-          set(h,'AlphaData',BW_Skel);
           percent=confirm/confirmthresh*100;
-          title(sprintf('Confirming: %s%%',int2str(percent)));
+          title(sprintf('Confirming: %s%%',int2str(percent)),'FontSize',18);
           drawnow;
+          end
+        %  hold on
+        %  h=imshow(red);
+        %  hold off
+        %  set(h,'AlphaData',BW_Skel);
       end
       
-      if (confirm>=confirmthresh) && (max(score)>0.8)
-          axes(handles.axes1)
+      if (confirm>=confirmthresh) && (max(score)>0.8) && filter==0
           %imshow(cam_snap);
-          imshow(BW_Train)
-          hold on
-          h=imshow(red);
-          hold off
-          set(h,'AlphaData',BW_Skel);
-          title({char(label),num2str(max(score),2)});
-          drawnow;
-          commands=Gesture2Command(label,commands);
-          
-
-          
-%               if strcmp(char(label),'Red Light Trigger')
-%                   set_Lamp_RGB(Light3, [255,0,0]);  %Set Hue Light Color
-%               end
-
+          if strcmp(char(get(handles.uipanel2,'Visible')),char('off'))
+              axes(handles.axes1)
+              imshow(BW_Train)
+              title({char(label),num2str(max(score),2)},'FontSize',18);
+              drawnow;
+              commands=Gesture2Command(label,commands);
+              
+          end
+          %hold on
+          %h=imshow(red);
+          %hold off
+          %set(h,'AlphaData',BW_Skel);;
+          %[y,x] = find(B); plot(x,y,'ro')
+         
       end
       
     else
-        axes(handles.axes1)
-        imshow(cam_snap)
-        imshow(BW_Train)
-        hold on
-        h=imshow(red);
-        hold off
-        set(h,'AlphaData',BW_Skel);
-        drawnow;
+        
+        %imshow(cam_snap)
+        if strcmp(char(get(handles.uipanel2,'Visible')),char('off'))
+            axes(handles.axes1)
+            imshow(BW_Train)
+            title('Gesture Not Recognized','FontSize',18);
+            drawnow;
+        end
+       % hold on
+       % h=imshow(red);
+        %set(h,'AlphaData',BW_Skel);
         confirm=0;
         commands=zeros(1,commandlength);
+        commands(1)=1;
     end
 
     prevlabel=label;
-    center_image = size(cam_snap)/2+.5;                                     %%%Calculates Center point
+    center_image = size(cam_snap_orig)/2+.5;                                     %%%Calculates Center point
     cam_sensitivity = 70; 
     center_sensitivity = 30;
     
    if centroids(:,1) > center_image(:,2)+center_sensitivity                  %%%Will center the user to the middle of the screen
-       commands(1) = 1;
-       commands(2) = 0;
+       commands(2) = 1;
+       commands(3) = 0;
        if centroids(:,1) > center_image(:,2)+cam_sensitivity                   %%%Will center the user to the middle of the screen
-       commands(3) = 1;
-       commands(4) = 0;
+       commands(4) = 1;
+       (5) = 0;
        end
    elseif centroids(:,1) < center_image(:,2)-center_sensitivity
-       commands(2) = 1;
-       commands(1) = 0;
+       commands(3) = 1;
+       commands(2) = 0;
        if centroids(:,1) < center_image(:,2)-cam_sensitivity
-       commands(4) = 1;
-       commands(3) = 0;
+       commands(5) = 1;
+       commands(4) = 0;
        end
     else
-       commands(1) = 0;
        commands(2) = 0;
        commands(3) = 0;
        commands(4) = 0;
+       commands(5) = 0;
     end
     
    fwrite(tcp,commands);
    
-   move = num2str(commands(5:commandlength));
-   
+   move = num2str(commands(6:commandlength));
+%    
 %    switch move
+%        case '1  0  0  0  0'
+%              set_Lamp_RGB(Light3, [255,0,0]);
+%        case '0  1  0  0  0'
+%              set_Lamp_RGB(Light3, [220,150,0])
+%        case '0  0  1  0  0'
+%              set_Lamp_RGB(Light3, [0,0,255]);
 %        case '0  0  0  1  0'
-%              set_Lamp_RGB(Light2, [255,0,0]);
-%        case '0  0  0  0  1'
-%              set_Lamp_RGB(Light2, [0,255,0]);
+%            set_Lamp_RGB(Light3, [30,255,30])
 %        otherwise 
-%              set_Lamp_RGB(Light2, [0,0,0]);
+%              set_Lamp_RGB(Light3, [0,0,0]);
 %    end
    
 %    pop3value=get(handles.popupmenu3,'Value');
@@ -570,14 +683,187 @@ while(1)
 % imshow(cam_snap)
 axes(handles.axes2)
 barh(scoreTop);
-title('Top 5')
-xlabel('Probability')
+title('Top 5','FontSize',18)
+xlabel('Probability','FontSize',18)
 xlim([0 1])
 yticklabels(classNamesTop)
 drawnow();
 
 cam_snap_prev=cam_snap;
+while (1)
+    pause(0.2)
+    %fprintf('Test\n')
+    if terminate == 1
+        commands(1)=0;
+        %set(handles.pushbutton10,'Visible','on')
+        set(handles.pushbutton4,'Visible','off')
+    end
+    if terminate == 0
+        commands(1)=1;
+       %set(handles.pushbutton10,'Visible','off')
+        set(handles.pushbutton4,'Visible','on')
+        break;
+    end
+        commands=zeros(1,length(commands));
+        vecphoto=fread(tcp,[227 227],'uint8');
+        fwrite(tcp,commands)
 end
+end
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% DEBUG MODE %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+else
+    set(handles.uipanel2,'Visible','off')
+    mode=1; % Set mode to change debug function
+        %%
+    filename=strcat(char(pwd),char('\data'));
+    directory=dir(filename);
+    files=strings(1,length(directory));
+
+    for i=1:length(directory)
+       file=directory(i);
+       files(i)=file.name;
+    end
+
+    files=files(3:length(directory));
+    newfiles=strings(1,length(files));
+
+    for i=1:length(files)
+        newfiles(i)=char(strcat(char(filename),char(strcat('\',files(i)))));
+    end
+%%
+    while(1)
+        
+    if debug==1
+    figure(1)
+    %figure(2)
+    filename=strcat(char(pwd),char('\data'));
+    directory=dir(filename);
+    files=strings(1,length(directory));
+
+    for i=1:length(directory)
+       file=directory(i);
+       files(i)=file.name;
+    end
+
+    files=files(3:length(directory));
+    newfiles2=strings(1,length(files));
+    r=ones(1,length(files));
+    for i=1:length(files)
+        %r(i)=1;
+        newfiles2(i)=char(strcat(char(filename),char(strcat('\',files(i),'\image_',int2str(r(i)),'.jpg'))));
+    end
+    I1=imread(char(newfiles2(1)));
+    I1=rgb2gray(I1);
+    debug=2;
+    end
+    
+    %disp(newfiles(1))
+    vecphoto=fread(tcp,[227 227],'uint8');  %% Receives vectorized image from server
+    %vecphoto=fread(tcp,[256 256],'uint8');
+    cam_snap=reshape(vecphoto,227,227);  %% Reshapes vector into an array 
+    %cam_snap=reshape(vecphoto,256,256);
+    cam_snap=uint8(cam_snap);  %% Changes type of array from double to uint8
+    
+    %%%%%
+    
+    
+    
+    %%%%%%
+    try BW = image_Binarize(cam_snap);
+    catch BW=image_Binarize(cam_snap_prev);
+    end
+    
+    BW_Train=BW*255;
+    BW_Train=uint8(BW_Train);
+    %BW_Skel=BW_Train;
+    BW_Train = cat(3, BW_Train, BW_Train, BW_Train);
+    cam_snap_3 = cat(3, cam_snap, cam_snap, cam_snap);
+    
+%     BW_Train=BW*255;
+%     BW_Train=uint8(BW_Train);
+%     BW_Skel=BW_Train;
+%     BW_Train = cat(3, BW_Train, BW_Train, BW_Train);
+    %cam_snap = cat(3, cam_snap, cam_snap, cam_snap);  
+    
+    %SIFT_feature(cam_snap)
+    
+    %%
+    if mode==0
+        points=detectSURFFeatures(cam_snap,'NumOctaves',4);
+        [features, valid_points] = extractFeatures(cam_snap,points);
+        imshow(cam_snap)
+        hold on;
+        plot(valid_points.selectStrongest(200),'showOrientation',true);
+    end
+    %%
+    
+    %%
+    
+    if mode==1
+        I2=rgb2gray(BW_Train);
+        points1=detectSURFFeatures(I1);
+        points2=detectSURFFeatures(I2);
+        [f1,vpts1]=extractFeatures(I1,points1);
+        [f2,vpts2]=extractFeatures(I2,points2);
+        indexPairs=matchFeatures(f1,f2);
+        matchedPoints1=vpts1(indexPairs(:,1));
+        matchedPoints2=vpts2(indexPairs(:,2));
+        if strcmp(char(get(handles.uipanel2,'Visible')),char('off'))
+        showMatchedFeatures(I1,I2,matchedPoints1,matchedPoints2);
+        end
+    end
+    
+    if mode==2
+       peopleDetector = vision.PeopleDetector; 
+       %bboxes = peopleDetector(cam_snap_3);
+       cam_snap_3=imread('test.jpg');
+       [bboxes,scores] = step(peopleDetector,cam_snap_3);
+       if isempty(bboxes)==0
+       cam_snap_3 = insertObjectAnnotation(cam_snap_3,'rectangle',bboxes,scores);
+       end
+    end
+  %  end
+       
+%%
+    %if get(handles.uipanel2,'Visible','on')
+        set(handles.popupmenu3,'String',files)
+        value=get(handles.popupmenu3,'Value');
+        r(value)=randi([1 length(files)]);
+        s(value)=int2str(r(value));
+        str=char(newfiles2(value));
+        for i=length(str):-1:1
+           if strcmp(str(i),'_')
+               break;
+           end
+        end
+        k=length(str)-i;
+        str=str(1:end-k);
+        str=strcat(str,s(value),'.jpg');
+        clear(char(newfiles2(value)))
+        %newfiles2(value)=1:length(str);
+        newfiles2(value)=char(str);
+        %value=str2num(char(value));
+        pic=imread(char(newfiles2(value)));
+        %set(handles.axes5,'UserData',pic)
+        if strcmp(char(get(handles.uipanel2,'Visible')),char('on'))
+        %cla;
+        imshow(pic)
+        drawnow;
+        end
+
+%%
+       
+       %[ ___ ] = peopleDetector(I,roi);
+       %imshow(cam_snap_3);
+       
+    commands=zeros(1,commandlength);
+    fwrite(tcp,commands)
+    camp_snap_prev=cam_snap;
+    end
+    %%
+    end
 
 
 % --- Executes on button press in pushbutton6.
@@ -593,7 +879,7 @@ function edit1_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of edit1 as text
+% Hints: get(hObject,'String') recturns contents of edit1 as text
 %        str2double(get(hObject,'String')) returns contents of edit1 as a double
 
 
@@ -617,3 +903,12 @@ global pb7
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 pb7=get(handles.edit1,'String');
+
+
+% --- Executes on button press in pushbutton10.
+function pushbutton10_Callback(hObject, eventdata, handles)
+% hObject    handle to pushbutton10 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+global terminate
+terminate=0;

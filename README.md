@@ -1,1 +1,0 @@
-# VCU2018_GestureRecognition
